@@ -601,6 +601,12 @@ section{position:relative}
 .rsvp-table td{padding:.6rem .5rem;border-bottom:1px solid var(--olive-soft);vertical-align:top;color:var(--ink)}
 .rsvp-table .badge-yes{color:var(--olive);font-weight:600}
 .rsvp-table .badge-no{color:#b5543f}
+.del-btn{
+  background:transparent;border:1px solid #d9b8ae;color:#b5543f;
+  padding:.3rem .7rem;border-radius:16px;font-size:.62rem;letter-spacing:.06em;
+  cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;transition:all .2s;white-space:nowrap;
+}
+.del-btn:hover{background:#b5543f;color:#fff;border-color:#b5543f}
 .admin-tabs{display:flex;gap:.5rem;margin-bottom:1.4rem;justify-content:center}
 .admin-tabs button{
   border:1px solid var(--olive-soft);background:transparent;color:var(--olive);
@@ -991,7 +997,7 @@ section{position:relative}
     wrap.innerHTML='<div class="admin-empty">Đang tải...</div>';
     db.collection(RSVP_COLLECTION).orderBy('createdAt','desc').get().then(function(snap){
       rows=[];
-      snap.forEach(function(doc){rows.push(doc.data());});
+      snap.forEach(function(doc){var d=doc.data();d._id=doc.id;rows.push(d);});
       renderRsvp();
     }).catch(function(e){
       wrap.innerHTML='<div class="admin-empty">Lỗi tải dữ liệu. Kiểm tra rules Firestore.</div>';
@@ -1013,18 +1019,36 @@ section{position:relative}
     document.getElementById('stNo').textContent=no;
     document.getElementById('stGuests').textContent=guests;
     if(!rows.length){wrap.innerHTML='<div class="admin-empty">Chưa có phản hồi nào.</div>';return;}
-    var html='<table class="rsvp-table"><thead><tr><th>Tên</th><th>Dự</th><th>SL</th><th>Lời nhắn</th><th>Lúc</th></tr></thead><tbody>';
+    var html='<table class="rsvp-table"><thead><tr><th>Tên</th><th>Dự</th><th>SL</th><th>Lời nhắn</th><th>Lúc</th><th></th></tr></thead><tbody>';
     rows.forEach(function(r){
       html+='<tr><td>'+esc(r.name)+'</td>'
         +'<td>'+(r.attending?'<span class="badge-yes">Có</span>':'<span class="badge-no">Vắng</span>')+'</td>'
         +'<td>'+(r.attending?(r.count||1):'-')+'</td>'
         +'<td>'+esc(r.message||'')+'</td>'
-        +'<td>'+fmtDate(r.createdAt)+'</td></tr>';
+        +'<td>'+fmtDate(r.createdAt)+'</td>'
+        +'<td><button class="del-btn" data-id="'+r._id+'" data-name="'+esc(r.name)+'">Xóa</button></td></tr>';
     });
     html+='</tbody></table>';
     wrap.innerHTML=html;
+    wrap.querySelectorAll('.del-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        delRsvp(btn.getAttribute('data-id'), btn.getAttribute('data-name'));
+      });
+    });
   }
   function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+  function delRsvp(id,name){
+    if(!id)return;
+    if(!confirm('Xóa phản hồi của "'+name+'"? Không khôi phục được.'))return;
+    db.collection(RSVP_COLLECTION).doc(id).delete().then(function(){
+      rows=rows.filter(function(r){return r._id!==id;});
+      renderRsvp();
+    }).catch(function(e){
+      alert('Xóa lỗi. Kiểm tra rules Firestore đã cho phép delete chưa.');
+      console.error(e);
+    });
+  }
 
   document.getElementById('refreshBtn').addEventListener('click',loadRsvp);
 
